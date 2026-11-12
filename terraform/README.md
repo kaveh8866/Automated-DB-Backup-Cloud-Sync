@@ -1,4 +1,4 @@
-# terraform/ — OCI provisioning for Project 03
+# terraform/ — OCI provisioning for Automated DB Backup & Cloud Sync
 
 OpenTofu ≥ 1.6 / Terraform ≥ 1.6. Provisions the **host** that runs the Stage 1
 compose stack and the **private Object Storage bucket** that receives the backup

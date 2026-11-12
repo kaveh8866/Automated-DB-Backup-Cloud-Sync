@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — failure notification hook
+# Automated DB Backup & Cloud Sync — failure notification hook
 # =============================================================================
 # Sourced by backup.sh and sync.sh. Emits one structured line on stderr and, when
 # ALERT_WEBHOOK_URL is set, POSTs the same event as JSON.

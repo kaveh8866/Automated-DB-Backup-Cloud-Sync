@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — one backup run
+# Automated DB Backup & Cloud Sync — one backup run
 # =============================================================================
 # Produces, in the archive directory:
 #   <db>_<UTC timestamp>.tar.gz          pg_dump custom dump + manifest

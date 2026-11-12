@@ -1,5 +1,5 @@
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — rclone remote template
+# Automated DB Backup & Cloud Sync — rclone remote template
 # =============================================================================
 # Copy to `rclone.conf`, fill in real values, and keep the filled file OUTSIDE
 # Git (it is gitignored). Then start the stack with:

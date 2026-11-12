@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — cloud sync
+# Automated DB Backup & Cloud Sync — cloud sync
 # =============================================================================
 # BACKUP_SYNC_MODE
 #   local  -> copy archives into the archive volume (offline/mock cloud target)

@@ -1,4 +1,4 @@
-# Project 03 · Automated DB Backup & Cloud Sync
+# Automated DB Backup & Cloud Sync
 
 ![Pipeline](https://img.shields.io/badge/pipeline-local%20drill%20certified-2EA043)
 ![Cloud target](https://img.shields.io/badge/certified%20target-OCI%20Free%20Tier-C74634)

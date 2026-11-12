@@ -1,5 +1,5 @@
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — terraform.tfvars template
+# Automated DB Backup & Cloud Sync — terraform.tfvars template
 # =============================================================================
 # Copy to `terraform.tfvars` (gitignored, never committed) and replace every
 # placeholder. Values can also come from TF_VAR_* environment variables, which

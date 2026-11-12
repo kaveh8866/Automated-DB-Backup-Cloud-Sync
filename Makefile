@@ -1,5 +1,5 @@
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — operator entry points
+# Automated DB Backup & Cloud Sync — operator entry points
 # =============================================================================
 # One place for the commands that used to be copied out of the README.
 #   make help          list everything

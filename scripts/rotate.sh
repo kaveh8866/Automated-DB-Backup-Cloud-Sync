@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — retention rotation
+# Automated DB Backup & Cloud Sync — retention rotation
 # =============================================================================
 # Two rules, both must allow deletion:
 #   1. the archive is older than BACKUP_RETENTION_DAYS

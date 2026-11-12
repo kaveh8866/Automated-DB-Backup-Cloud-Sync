@@ -1,4 +1,4 @@
-# Project 03 · Automated DB Backup & Cloud Sync
+# Automated DB Backup & Cloud Sync
 # PostgreSQL (source of truth) + backup runner (dump -> archive -> prune -> sync).
 # Validated against the Compose Spec (no obsolete `version:` key).
 #

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — scheduler
+# Automated DB Backup & Cloud Sync — scheduler
 # =============================================================================
 # Waits for the database, then runs one backup cycle per interval:
 #   backup.sh  (dump -> tar.gz + manifest + checksum)

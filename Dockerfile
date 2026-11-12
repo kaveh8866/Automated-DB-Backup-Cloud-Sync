@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# Project 03 · Automated DB Backup & Cloud Sync — backup runner image
+# Automated DB Backup & Cloud Sync — backup runner image
 # =============================================================================
 # Small Alpine image carrying exactly what a backup cycle needs:
 #   postgresql16-client  -> pg_dump / pg_isready matching the PG16 server

@@ -1,4 +1,4 @@
-# AGENT_GUIDE.md — Project 03 · Automated DB Backup & Cloud Sync
+# AGENT_GUIDE.md — Automated DB Backup & Cloud Sync
 
 An executable playbook for AI coding agents (Cursor, Claude Code, Windsurf) and
 humans acting like one. Every phase states what to run, what to read back, and
@@ -376,7 +376,7 @@ restore row counts, sync verification line.
 ## Report template
 
 ```markdown
-## Project 03 — Stage <n> report
+## Stage <n> report
 - Compose: config valid (exit 0), services postgres + backup-runner
 - Cycle: <n> archives, sizes <…>, manifest dump_bytes=<…>
 - Retention: <n> removed / <n> retained (policy <days>d, keep>= <k>)

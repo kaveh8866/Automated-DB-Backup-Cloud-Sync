@@ -1,4 +1,4 @@
-=== Project 03 · teardown audit -------------------------------------------
+=== teardown audit ------------------------------------------------------------
 date (UTC)      2026-11-12
 target           Oracle Cloud Infrastructure (certified target) + local Docker
 verdict          NO LIVE RESOURCES EXIST — nothing to destroy, $0.00 burn rate

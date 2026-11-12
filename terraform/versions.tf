@@ -1,4 +1,4 @@
-# Project 03 · Automated DB Backup & Cloud Sync — OCI environment (Stage 2)
+# Automated DB Backup & Cloud Sync — OCI environment (Stage 2)
 #
 # Root module. Provisions the host that runs the Stage 1 compose stack, plus the
 # Object Storage bucket that receives the backup archives. Everything

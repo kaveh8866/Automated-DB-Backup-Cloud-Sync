@@ -1,4 +1,4 @@
-=== Project 03 · zero-leak security audit ---------------------------------
+=== zero-leak security audit --------------------------------------------------
 date (UTC)      2026-11-12
 scope            entire workspace of projects/03-automated-db-backup-cloud-sync
 method           file-class enumeration, tracked-content grep, ignore-rule firing
