@@ -101,6 +101,13 @@ services:
       RCLONE_REMOTE: ${RCLONE_REMOTE:-}
       RCLONE_DEST_PATH: ${RCLONE_DEST_PATH:-}
       RCLONE_CONFIG: /etc/rclone/rclone.conf
+      # At-rest encryption of the archives (off | openssl).
+      BACKUP_ENCRYPTION: ${BACKUP_ENCRYPTION:-off}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:-}
+      BACKUP_ENCRYPTION_PASSPHRASE_FILE: ${BACKUP_ENCRYPTION_PASSPHRASE_FILE:-}
+      # Failure notification hook; empty means structured log line only.
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_TIMEOUT_SECONDS: ${ALERT_TIMEOUT_SECONDS:-10}
       TZ: ${TZ:-UTC}
     volumes:
       - backup-archive:/backups

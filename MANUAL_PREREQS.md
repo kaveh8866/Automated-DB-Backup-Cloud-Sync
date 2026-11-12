@@ -142,6 +142,12 @@ cp .env.example .env
 - [ ] `BACKUP_RETENTION_DAYS` / `BACKUP_KEEP_MINIMUM` — your retention policy.
 - [ ] `BACKUP_SYNC_MODE` — `local` (offline drill) or `rclone` (real bucket).
 - [ ] `RCLONE_REMOTE=oci-backups`, `RCLONE_DEST_PATH=cloudguard/db-backups`.
+- [ ] `BACKUP_ENCRYPTION=openssl` if the archives must be unreadable at rest, plus
+      either `BACKUP_ENCRYPTION_PASSPHRASE` (drills) or
+      `BACKUP_ENCRYPTION_PASSPHRASE_FILE=/etc/backup-key/passphrase` mounted from
+      outside the repository. **Lose this passphrase and the archives are gone** —
+      store it in your password manager before the first encrypted cycle.
+- [ ] `ALERT_WEBHOOK_URL` for failure notifications (leave empty for log-only).
 - [ ] Confirm it is ignored: `git check-ignore -v .env` must print a match.
 
 ---

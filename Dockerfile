@@ -6,6 +6,8 @@
 #   postgresql16-client  -> pg_dump / pg_isready matching the PG16 server
 #   rclone               -> S3-compatible sync (OCI Object Storage)
 #   coreutils/tar/gzip   -> archive + checksum tooling
+#   openssl              -> optional AES-256 at-rest encryption of archives
+#   curl                 -> optional failure webhook (scripts/alert.sh)
 #
 # The image is configuration-free: every value arrives as an environment
 # variable, and the scripts are baked in so parsing/paths cannot drift between
@@ -17,8 +19,10 @@ RUN apk add --no-cache \
       bash \
       ca-certificates \
       coreutils \
+      curl \
       findutils \
       gzip \
+      openssl \
       postgresql16-client \
       rclone \
       tar \

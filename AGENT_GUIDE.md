@@ -144,7 +144,12 @@ docker exec cg-backup-runner tar -xzOf "$ARCHIVE" manifest.json
 docker exec cg-backup-runner sh -c 'cd /backups && sha256sum -c *.sha256'
 
 # 4. compression actually happened
-docker exec cg-backup-runner sh -c 'cd /backups && ls -l *.tar.gz'
+docker exec cg-backup-runner sh -c 'cd /backups && ls -l *.tar.gz*'
+
+# 5. when BACKUP_ENCRYPTION=openssl: ciphertext must not be readable as gzip
+A=$(docker exec cg-backup-runner sh -c 'ls -1 /backups/*.enc | head -1')
+docker exec cg-backup-runner sh -c "tar -tzf $A" && echo 'LEAK: plaintext present' || echo 'ok: encrypted'
+docker exec cg-backup-runner sh -c "head -c 9 $A"   # expect: Salted__
 ```
 
 A dump of the seeded database is a few hundred KB; the `.tar.gz` must be smaller
@@ -226,6 +231,26 @@ docker compose -f docker/docker-compose.yml logs --tail=40 backup-runner | grep 
 **Stop if:** `rclone check` reports differences, or `403`/`401` appears — that is
 an endpoint/credential problem, not a code problem.
 
+### 5d. Failure alerting
+
+Prove the hook fires and that it never changes the outcome:
+
+```bash
+# log-only (no webhook configured)
+docker exec -e PGPASSWORD=wrong cg-backup-runner /usr/local/bin/backup.sh
+# expect: "[alert] level=critical stage=backup backup cycle aborted with exit 1"
+
+# with a webhook, then with a dead one
+docker exec -e PGPASSWORD=wrong -e ALERT_WEBHOOK_URL=http://host.docker.internal:8899/alert \
+  cg-backup-runner /usr/local/bin/backup.sh
+docker exec -e PGPASSWORD=wrong -e ALERT_WEBHOOK_URL=http://127.0.0.1:9/dead \
+  cg-backup-runner /usr/local/bin/backup.sh
+# expect: "webhook delivery failed — log-only", exit code still 1
+```
+
+**Stop if:** a dead webhook changes the exit code, blocks for longer than
+`ALERT_TIMEOUT_SECONDS`, or the alert fires more than once per failed cycle.
+
 ---
 
 ## Phase 6 — Restore drill (`pg_restore`)
@@ -284,7 +309,13 @@ without `--no-owner`), the counts differ from the source, or the restore require
 
 ## Phase 7 — Provision the host (OCI, the certified target)
 
+One command from the repository root (init → fmt → validate → plan → apply →
+outputs), or the same steps by hand:
+
 ```bash
+make deploy-oci
+
+# equivalent, step by step
 cd terraform
 cp terraform.tfvars.example terraform.tfvars   # operator fills: tenancy, compartment, ssh key
 tofu init && tofu fmt -recursive && tofu validate

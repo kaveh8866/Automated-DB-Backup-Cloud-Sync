@@ -69,10 +69,13 @@ Negations (`!.env.example`, `!*.tfvars.example`,
 scaffolding in the repo while the real files stay out.
 
 --- 5. .env.example structure -------------------------------------------
-  assignments        18
+  assignments        23       (18 at the Stage 7 audit, 5 added with the
+                               encryption and alerting keys)
+  empty values       0        (the scaffold check requires placeholders even
+                               for optional keys)
   invalid lines      0        (every non-comment line matches ^[A-Z][A-Z0-9_]*=)
   real values        0        (all placeholders: your_db_password_here,
-                               your_object_storage_namespace_here, …)
+                               https://example.invalid/…, …)
 
 The file must contain only KEY=value lines and comments; a header or prose line
 would break both the scanner and `docker compose --env-file`.

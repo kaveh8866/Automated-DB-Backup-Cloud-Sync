@@ -17,7 +17,9 @@ log() { printf '%s [rotate] %s\n' "$(date -u +%FT%TZ)" "$*" >&2; }
 : "${BACKUP_KEEP_MINIMUM:=3}"
 
 shopt -s nullglob
-archives=("${BACKUP_ARCHIVE_DIR}"/*.tar.gz)
+# Plaintext and encrypted archives are both first-class: `.tar.gz` and
+# `.tar.gz.enc`, each with a matching `.sha256` sidecar.
+archives=("${BACKUP_ARCHIVE_DIR}"/*.tar.gz "${BACKUP_ARCHIVE_DIR}"/*.tar.gz.enc)
 count=${#archives[@]}
 
 if [ "$count" -eq 0 ]; then
@@ -41,6 +43,7 @@ while IFS= read -r archive; do
 
   if [ "$modified" -lt "$cutoff" ] && [ "$newer" -ge "$BACKUP_KEEP_MINIMUM" ]; then
     log "removing $(basename "$archive") (age exceeds ${BACKUP_RETENTION_DAYS}d, ${newer} newer kept)"
+    # The sidecar always sits next to the archive: `<name>.sha256`.
     rm -f "$archive" "${archive}.sha256"
     removed=$((removed + 1))
   fi

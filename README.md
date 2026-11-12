@@ -112,6 +112,28 @@ Data flow in one line: **`[PostgreSQL] → [runner: pg_dump + gzip + sha256] →
 - Copy-only by design: retention protects the host, bucket lifecycle protects the
   bucket. Neither deletes the other's files.
 
+**Encryption at rest**
+
+- `BACKUP_ENCRYPTION=openssl` encrypts the finished archive with **AES-256-CBC and
+  PBKDF2 (200,000 iterations, salted)** before it is checksummed and synced.
+- The plaintext archive is **deleted** after encryption; only `<name>.tar.gz.enc`
+  and its `.sha256` remain, so "at rest" means at rest on the volume *and* in the
+  bucket.
+- The passphrase never enters the image or the repo: `BACKUP_ENCRYPTION_PASSPHRASE`
+  (drills) or `BACKUP_ENCRYPTION_PASSPHRASE_FILE` (servers, mounted read-only).
+- Rotation and sync understand encrypted archives: retention prunes `.enc` files
+  with their sidecars, and the S3 upload includes `*.tar.gz.enc`.
+
+**Failure alerting**
+
+- Every abort runs an `ERR` trap, which emits one structured line:
+  `[alert] level=critical stage=backup …` — `stage` is the thing that broke
+  (`backup`, `rotate` or `sync`).
+- Set `ALERT_WEBHOOK_URL` to any JSON endpoint (Slack, Discord, Teams, ntfy, n8n,
+  Grafana, a CloudGuard endpoint) and the same event is POSTed, with a 10 s timeout.
+- Alerting is **best-effort by contract**: a missing or dead endpoint logs
+  `webhook delivery failed — log-only` and never changes the cycle's outcome.
+
 **Operations**
 
 - Health-gated start: the runner waits for `pg_isready` before its first dump.
@@ -172,9 +194,41 @@ All settings live in `.env` (gitignored) and fall back to
 | `BACKUP_KEEP_MINIMUM` | `3` | Floor rule (wins over the age rule) |
 | `BACKUP_SYNC_MODE` | `local` | `local` \| `rclone` \| `off` |
 | `RCLONE_REMOTE` / `RCLONE_DEST_PATH` | `oci-backups` / `cloudguard/db-backups` | Bucket target |
+| `BACKUP_ENCRYPTION` | `off` | `off` \| `openssl` (AES-256-CBC + PBKDF2) |
+| `BACKUP_ENCRYPTION_PASSPHRASE` / `_FILE` | — | Passphrase inline (drills) or from a mounted file (servers) |
+| `ALERT_WEBHOOK_URL` / `ALERT_TIMEOUT_SECONDS` | empty / `10` | Failure notification endpoint |
 | `OCI_REGION`, `OCI_NAMESPACE`, `OCI_BUCKET_NAME` | — | Endpoint and bucket naming |
 | `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, `OCI_COMPARTMENT_OCID` | — | IaC inputs (never committed) |
 | `TZ` | `UTC` | Log timestamps |
+
+---
+
+## 🧰 One-command operations
+
+A `Makefile` wraps the commands that used to be copied out of this README:
+
+```bash
+make help           # every target, one line each
+make up             # validate + build + start postgres and the runner
+make backup         # run one cycle now, bypassing the interval
+make verify         # newest archive: contents (or 'encrypted'), size, checksum
+make decrypt FILE=/backups/<name>.tar.gz.enc
+make restore DB=appdb_restored     # full pg_restore drill into a scratch DB
+make lint           # bash -n on every script + tofu fmt -check
+```
+
+**One-command OCI deployment** — the whole infrastructure spin, from provider
+download to printed endpoints:
+
+```bash
+make deploy-oci
+# = cd terraform && tofu init && tofu fmt -recursive && tofu validate
+#   && tofu plan -out=tfplan && tofu apply tfplan && tofu output connection_endpoints
+```
+
+`make tofu-validate` runs init + validate only (no credentials needed), and
+`make destroy-oci` is the documented counterpart — empty the bucket first, since
+`oci_objectstorage_bucket` has no force-destroy.
 
 ---
 
@@ -183,6 +237,9 @@ All settings live in `.env` (gitignored) and fall back to
 Never restore into the live database. Create a scratch one and prove the numbers.
 
 ```bash
+# 0 · if the archive is encrypted, decrypt it first (writes the .tar.gz alongside)
+make decrypt FILE=/backups/appdb_<timestamp>.tar.gz.enc
+
 # 1 · pick the newest archive and fetch it (container → host → container)
 ARCHIVE=$(docker exec cg-backup-runner sh -c 'ls -1t /backups/*.tar.gz | head -1')
 mkdir -p .tmp-restore
@@ -350,6 +407,9 @@ keys and no real values.
 | 4 | Retention | 3 × 30-day archives pruned under 7d; **0** pruned at `keep>=10`; floor honoured at `keep>=2` |
 | 4 | Local sync | 3/3 archives byte-identical in `/backups/mock-cloud-sync` |
 | 4 | Restore drill | `pg_restore` exit 0 → 25 customers / 1000 events |
+| 7 | Encryption at rest | ciphertext is `Salted__` (not gzip); decrypt → dump SHA-256 matches the manifest; plaintext removed |
+| 7 | Retention on `.enc` | 5 archives (3 aged 30 d, encrypted) → 2 pruned, floor of 3 respected, sidecars consistent |
+| 7 | Failure alerting | wrong password → `[alert] level=critical stage=backup`; webhook POST received (JSON captured); dead endpoint degrades to log-only, exit code unchanged |
 | 5 | Live OCI deploy | **not executed** — no OCI credentials in the workspace |
 | 6 | Teardown audit | no state, no credentials, no resources: **0** containers / volumes / networks / images |
 
@@ -380,8 +440,8 @@ Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verificatio
 | **4** | Local drill: boot, backup + compression, retention, sync, restore | ✅ |
 | **5** | Live OCI deploy: cycles against the real bucket, restore rehearsal | ⬜ blocked on credentials |
 | **6** | Teardown audit and zero-resource verification | ✅ (nothing provisioned) |
-| **7** | Encryption at rest (age/gpg), manifest signing, key custody | ⬜ |
-| **8** | Metric/alert surface (Prometheus textfile or webhook on failure) | ⬜ |
+| **7** | Encryption at rest (AES-256) + failure alerting webhook | ✅ |
+| **8** | Manifest signing (minisign/age), metric surface for dashboards | ⬜ |
 
 ---
 
