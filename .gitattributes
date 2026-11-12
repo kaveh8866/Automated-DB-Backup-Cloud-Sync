@@ -1,0 +1,11 @@
+# Shell scripts, Dockerfiles and configs must keep LF endings: the runner image
+# executes them directly, and CRLF produces "bad interpreter" at container start.
+* text=auto eol=lf
+
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.conf      text eol=lf
+*.sql       text eol=lf
+*.tf        text eol=lf

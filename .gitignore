@@ -1,0 +1,77 @@
+# =============================================================================
+# Project 03 · Automated DB Backup & Cloud Sync — zero-leak boundary
+# Nothing that carries a credential, a private key, a database dump or
+# generated state may ever be committed. Runtime data lives in Docker volumes.
+# =============================================================================
+
+# --- Environment / credentials ----------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+keys/
+id_rsa
+id_ed25519
+credentials.json
+application_default_credentials.json
+*service-account*.json
+*.json_sa
+
+# --- Cloud / rclone client configuration ------------------------------------
+rclone.conf
+.rclone.conf
+!configs/rclone/rclone.conf.example
+
+# --- Backup artefacts (never in Git; they live in the archive volume) -------
+backups/
+archive/
+*.tar.gz
+*.tar.bz2
+*.dump
+*.sql
+*.sql.gz
+*.sha256
+manifest.json
+!configs/postgres/init/*.sql
+
+# --- PostgreSQL runtime data ------------------------------------------------
+pgdata/
+postgres-data/
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+vault.db
+
+# --- Terraform / OpenTofu state (Stage 2) -----------------------------------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+
+# --- Logs -------------------------------------------------------------------
+logs/
+*.log
+
+# --- OS / editor noise ------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Node (tooling only; the project itself is shell + Docker) --------------
+node_modules/
+dist/
+build/

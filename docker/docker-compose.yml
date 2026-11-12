@@ -1,0 +1,126 @@
+# Project 03 · Automated DB Backup & Cloud Sync
+# PostgreSQL (source of truth) + backup runner (dump -> archive -> prune -> sync).
+# Validated against the Compose Spec (no obsolete `version:` key).
+#
+# Run from the repository root:
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+#
+# Relative paths below resolve against this file's directory (docker/).
+
+name: cloudguard-db-backup
+
+x-log-rotation: &log-rotation
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "2"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL: the database being protected. Data lives on a named volume so a
+  # container recreate never loses it; tuning is passed as -c flags so the
+  # image's own pg_hba.conf / ident handling stays untouched.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: cg-db
+    restart: unless-stopped
+    command:
+      - postgres
+      # Sized for a 1 OCPU / 1 GB VM: small shared cache, few connections.
+      - -c
+      - max_connections=30
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_wal_size=512MB
+      - -c
+      - min_wal_size=80MB
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - timezone=UTC
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-exposing}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      # Loopback only: the runner reaches the database over the compose network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Seed schema so the first backup cycle has real content to protect.
+      - ../configs/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 384m
+    cpus: 0.5
+    shm_size: 64m
+    security_opt:
+      - no-new-privileges:true
+    logging: *log-rotation
+    networks:
+      - backup-net
+
+  # ---------------------------------------------------------------------------
+  # Backup runner: waits for a healthy database, then loops
+  #   pg_dump -> tar.gz + manifest + sha256 -> retention rotation -> cloud sync
+  # Archive volume is the single place backups live before/after sync.
+  # ---------------------------------------------------------------------------
+  backup-runner:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: cloudguard/db-backup-runner:local
+    container_name: cg-backup-runner
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-appdb}
+      PGUSER: ${POSTGRES_USER:-appuser}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me-before-exposing}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-3600}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_KEEP_MINIMUM: ${BACKUP_KEEP_MINIMUM:-3}
+      BACKUP_SYNC_MODE: ${BACKUP_SYNC_MODE:-local}
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      RCLONE_DEST_PATH: ${RCLONE_DEST_PATH:-}
+      RCLONE_CONFIG: /etc/rclone/rclone.conf
+      TZ: ${TZ:-UTC}
+    volumes:
+      - backup-archive:/backups
+      # Schedule/retention defaults (environment variables still win).
+      - ../configs/backup:/etc/backup:ro
+      # rclone template only; copy it to rclone.conf and mount real credentials
+      # outside Git before enabling BACKUP_SYNC_MODE=rclone.
+      - ../configs/rclone:/etc/rclone:ro
+    mem_limit: 192m
+    cpus: 0.25
+    security_opt:
+      - no-new-privileges:true
+    logging: *log-rotation
+    networks:
+      - backup-net
+
+volumes:
+  pgdata:
+  backup-archive:
+
+networks:
+  backup-net:
+    driver: bridge

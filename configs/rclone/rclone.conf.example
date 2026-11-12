@@ -1,0 +1,36 @@
+# =============================================================================
+# Project 03 · Automated DB Backup & Cloud Sync — rclone remote template
+# =============================================================================
+# Copy to `rclone.conf`, fill in real values, and keep the filled file OUTSIDE
+# Git (it is gitignored). Then start the stack with:
+#   BACKUP_SYNC_MODE=rclone
+# The runner reads it at /etc/rclone/rclone.conf.
+#
+# The example below targets OCI Object Storage through its S3-compatible API.
+# The same block shape works for AWS S3, Cloudflare R2 or MinIO — only
+# `provider`, `endpoint` and `region` change.
+#
+# Generate the key pair in OCI:
+#   Identity -> Users -> <user> -> Customer Secret Keys -> Create
+# (Customer Secret Keys, not API signing keys — those are for the SDK/CLI.)
+
+[oci-backups]
+type = s3
+provider = Other
+env_auth = false
+access_key_id = your_customer_secret_key_id_here
+secret_access_key = your_customer_secret_key_here
+endpoint = https://your_namespace_here.compat.objectstorage.eu-frankfurt-1.oraclecloud.com
+region = eu-frankfurt-1
+acl = private
+no_check_bucket = true
+
+# --- AWS S3 equivalent -------------------------------------------------------
+# [aws-backups]
+# type = s3
+# provider = AWS
+# env_auth = false
+# access_key_id = your_access_key_id_here
+# secret_access_key = your_secret_access_key_here
+# region = eu-central-1
+# acl = private

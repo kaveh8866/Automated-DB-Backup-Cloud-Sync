@@ -1,0 +1,144 @@
+=== Stage 4 · local verification — 2026-11-12T19:54:50Z ===
+
+--- containers ---
+cg-backup-runner | cloudguard/db-backup-runner:local | Up 40 seconds
+cg-db | postgres:16-alpine | Up 46 seconds (healthy)
+
+--- archive directory ---
+total 24
+drwxr-xr-x 3 backup backup 4096 Nov 12 19:54 .
+drwxr-xr-x 1 root   root   4096 Nov 12 19:54 ..
+-rw-r--r-- 1 backup backup 4308 Nov 12 19:54 appdb_20261112T195409Z.tar.gz
+-rw-r--r-- 1 backup backup   96 Nov 12 19:54 appdb_20261112T195409Z.tar.gz.sha256
+drwxr-xr-x 2 backup backup 4096 Nov 12 19:54 mock-cloud-sync
+archive: /backups/appdb_20261112T195409Z.tar.gz
+appdb_20261112T195409Z.dump
+manifest.json
+--- manifest ---
+{
+  "database": "appdb",
+  "host": "postgres",
+  "created_at": "20261112T195409Z",
+  "dump_format": "pg_dump custom (zlib)",
+  "dump_bytes": 9944,
+  "dump_sha256": "15b9de8d2ea4a08001b3f7377545a0adf23e5a32c2ec550c3b3d579561c6f4f2",
+  "pg_client_version": "16.14",
+  "encryption": "reserved for Stage 3 (age/gpg hook)"
+}
+--- sizes ---
+-rw-r--r-- 1 backup backup 4308 Nov 12 19:54 /backups/appdb_20261112T195409Z.tar.gz
+--- checksum ---
+appdb_20261112T195409Z.tar.gz: OK
+total 20
+drwxr-xr-x 2 backup backup 4096 Nov 12 19:54 .
+drwxr-xr-x 3 backup backup 4096 Nov 12 19:54 ..
+-rw-r--r-- 1 backup backup 4308 Nov 12 19:54 appdb_20261112T195409Z.tar.gz
+-rw-r--r-- 1 backup backup   96 Nov 12 19:54 appdb_20261112T195409Z.tar.gz.sha256
+--- byte comparison ---
+identical: appdb_20261112T195409Z.tar.gz
+
+--- retention drill setup: 3 mock archives aged 30 days ---
+appdb_20261112T195409Z.tar.gz
+appdb_20261112T195409Z.tar.gz.sha256
+mockold_1.tar.gz
+mockold_1.tar.gz.sha256
+mockold_2.tar.gz
+mockold_2.tar.gz.sha256
+mockold_3.tar.gz
+mockold_3.tar.gz.sha256
+2026-11-12T19:55:06Z [rotate] rotation complete: 0 removed, 7 retained (policy 7d / keep>=3)
+  remaining total: 7
+    appdb_20261112T195409Z.tar.gz
+    appdb_20261112T195501Z.tar.gz
+    appdb_20261112T195503Z.tar.gz
+    appdb_20261112T195504Z.tar.gz
+    mockold_1.tar.gz
+    mockold_2.tar.gz
+    mockold_3.tar.gz
+
+--- retention drill A: 7 archives, 3 of them 30 days old, policy 7d / keep>=3 ---
+  total archives: 9  (3 aged 30d)
+    mockold_1.tar.gz
+    mockold_2.tar.gz
+    mockold_3.tar.gz
+    appdb_20261112T195409Z.tar.gz
+    appdb_20261112T195501Z.tar.gz
+    appdb_20261112T195503Z.tar.gz
+    appdb_20261112T195504Z.tar.gz
+    appdb_20261112T195509Z.tar.gz
+    appdb_20261112T195546Z.tar.gz
+2026-11-12T19:55:54Z [rotate] removing mockold_1.tar.gz (age exceeds 7d, 8 newer kept)
+2026-11-12T19:55:54Z [rotate] removing mockold_2.tar.gz (age exceeds 7d, 7 newer kept)
+2026-11-12T19:55:54Z [rotate] removing mockold_3.tar.gz (age exceeds 7d, 6 newer kept)
+2026-11-12T19:55:54Z [rotate] rotation complete: 3 removed, 6 retained (policy 7d / keep>=3)
+  after: total=6  mock_left=0  sidecars=6
+
+--- retention drill B: everything 'too old' (0d) but keep>=10 — nothing may be deleted ---
+  before: 6 archives
+2026-11-12T19:56:01Z [rotate] rotation complete: 0 removed, 6 retained (policy 0d / keep>=10)
+  after:  6 archives
+
+--- retention drill C: everything 'too old' (0d) with keep>=2 — prunes down to the floor ---
+2026-11-12T19:56:02Z [rotate] removing appdb_20261112T195409Z.tar.gz (age exceeds 0d, 5 newer kept)
+2026-11-12T19:56:02Z [rotate] removing appdb_20261112T195501Z.tar.gz (age exceeds 0d, 4 newer kept)
+2026-11-12T19:56:02Z [rotate] removing appdb_20261112T195503Z.tar.gz (age exceeds 0d, 3 newer kept)
+2026-11-12T19:56:02Z [rotate] removing appdb_20261112T195504Z.tar.gz (age exceeds 0d, 2 newer kept)
+2026-11-12T19:56:02Z [rotate] rotation complete: 4 removed, 2 retained (policy 0d / keep>=2)
+  after:  total=2  sidecars=2
+    appdb_20261112T195509Z.tar.gz
+    appdb_20261112T195546Z.tar.gz
+
+--- restore drill: newest archive into appdb_restored ---
+  archive: appdb_20261112T195546Z.tar.gz
+  appdb_20261112T195546Z.tar.gz: OK
+  total 16
+  -rw-r--r-- 1 backup backup 9944 Nov 12 19:55 appdb_20261112T195546Z.dump
+  -rw-r--r-- 1 backup backup  320 Nov 12 19:55 manifest.json
+  pg_restore exit=1
+  psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  database "appdb_restored" does not exist
+  fetched /tmp/restore/appdb_20261112T195546Z.dump -> .tmp-restore/restore.dump (9944 bytes)
+  pushed into cg-db:/tmp/restore.dump
+  created database appdb_restored
+  pg_restore status=0
+   customers 
+  -----------
+          25
+  (1 row)
+  
+   events 
+  --------
+     1000
+  (1 row)
+  
+           newest_event         
+  ------------------------------
+   2026-11-12 19:54:06.12978+00
+  (1 row)
+  
+  source customers: 25
+  host temp removed
+  scratch database and temp files removed
+
+--- local sync (BACKUP_SYNC_MODE=local) after a fresh cycle ---
+2026-11-12T19:56:32Z [backup] archive written: appdb_20261112T195632Z.tar.gz (4311 bytes, dump 9944 bytes)
+2026-11-12T19:56:32Z [sync] local sync complete: 2 file(s) copied to /backups/mock-cloud-sync
+--- parity ---
+  identical: appdb_20261112T195509Z.tar.gz
+  identical: appdb_20261112T195546Z.tar.gz
+  identical: appdb_20261112T195632Z.tar.gz
+  local-mirror files: 10
+  live archives:      3
+
+--- summary ---------------------------------------------------------------
+stack           cg-db (postgres:16-alpine) healthy; cg-backup-runner up
+seed            25 customers, 1000 events (tables: customers, events)
+backup          appdb_20261112T195546Z.tar.gz 4311 B <- dump 9944 B (57% smaller)
+archive         contains <db>_<ts>.dump + manifest.json; sha256sum -c OK
+retention A     7 archives (3 aged 30d), policy 7d/keep>=3 -> 3 removed, 6 kept
+retention B     policy 0d/keep>=10 -> 0 removed (safety rule vetoed deletion)
+retention C     policy 0d/keep>=2  -> 4 removed, 2 kept (floor respected)
+sidecars        .sha256 count always equals archive count (no orphans)
+sync (local)    3/3 live archives identical via cmp in /backups/mock-cloud-sync
+mirror note     copy-only: 10 mirrored files vs 3 live (pruned copies persist)
+restore         pg_restore exit 0 -> appdb_restored: 25 customers, 1000 events
+fix              rotate.sh ordered by filename; now orders by mtime (-1tr)

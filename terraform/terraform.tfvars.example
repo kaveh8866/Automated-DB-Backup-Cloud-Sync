@@ -1,0 +1,58 @@
+# =============================================================================
+# Project 03 · Automated DB Backup & Cloud Sync — terraform.tfvars template
+# =============================================================================
+# Copy to `terraform.tfvars` (gitignored, never committed) and replace every
+# placeholder. Values can also come from TF_VAR_* environment variables, which
+# keeps them out of the working tree entirely.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   tofu init && tofu validate && tofu plan
+
+# --- OCI identity ------------------------------------------------------------
+tenancy_ocid     = "your_tenancy_ocid_here"
+compartment_ocid = "your_compartment_ocid_here"
+region           = "eu-frankfurt-1"
+
+# Either supply API-key material here ...
+# user_ocid        = "your_user_ocid_here"
+# fingerprint      = "your_api_key_fingerprint_here"
+# private_key_path = "~/.oci/oci_api_key.pem"
+#
+# ... or leave those unset and authenticate with a profile:
+# config_file_profile = "DEFAULT"
+
+# --- Naming ------------------------------------------------------------------
+project_name = "cloudguard-db-backup"
+environment  = "dev"
+
+# --- Network -----------------------------------------------------------------
+vcn_cidr         = "10.2.0.0/16"
+subnet_cidr      = "10.2.1.0/24"
+# Restrict to your own address: SSH is the only inbound port this stack opens.
+ssh_allowed_cidr = "0.0.0.0/0"
+
+# --- Compute (Always Free ARM) ----------------------------------------------
+instance_shape       = "VM.Standard.A1.Flex"
+instance_ocpus       = 1
+instance_memory_gbs  = 6
+boot_volume_size_gbs = 50
+# availability_domain = "jiTx:EU-FRANKFURT-1-AD-1"   # leave null for the first AD
+hostname_label = "db-backup"
+
+# Public key CONTENT (cat ~/.ssh/id_ed25519.pub), never a private key.
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... your_key_comment"
+
+# --- Object Storage ----------------------------------------------------------
+bucket_name = "cloudguard-db-backups"
+# bucket_namespace = "your_object_storage_namespace_here"   # default: resolved from the tenancy
+
+enable_bucket_versioning  = true
+bucket_archive_after_days = 30   # 0 disables the Archive-tier transition
+bucket_delete_after_days  = 0    # 0 keeps archives forever; the runner prunes
+
+# --- Tags --------------------------------------------------------------------
+freeform_tags = {
+  project = "automated-db-backup-cloud-sync"
+  owner   = "cloudguard"
+  tier    = "always-free"
+}

@@ -1,0 +1,51 @@
+#cloud-config
+# =============================================================================
+# Project 03 · Automated DB Backup & Cloud Sync — first-boot bootstrap
+# =============================================================================
+# Prepares a host that can run the Stage 1 compose stack. It deliberately does
+# NOT contain a credential, a repository URL or any application configuration:
+# the stack is cloned and configured over SSH in Stage 3, so nothing secret can
+# end up in instance metadata or in OpenTofu state.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - gnupg
+  - jq
+  - rclone
+  - unattended-upgrades
+
+write_files:
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "2" }
+      }
+
+  - path: /etc/cloudguard/README.txt
+    permissions: "0644"
+    content: |
+      CloudGuard · ${project_name}
+      Deploy the stack over SSH:
+        git clone <repo-url> && cd Automated-DB-Backup-Cloud-Sync
+        cp .env.example .env   # set POSTGRES_PASSWORD
+        docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+      PostgreSQL stays on loopback; reach it with:
+        ssh -L 5432:localhost:5432 ubuntu@<this-host>
+
+runcmd:
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu
+  - install -d -o ubuntu -g ubuntu -m 0755 /opt/cloudguard
+  # Keep the host minimal: the backup runner ships in its own image.
+  - systemctl enable --now unattended-upgrades || true
+  - echo "cloudguard bootstrap complete" > /var/log/cloudguard-bootstrap.log
+
+final_message: "CloudGuard host ready after $UPTIME seconds. Next: deploy the compose stack over SSH."

@@ -1,0 +1,84 @@
+=== Project 03 · teardown audit -------------------------------------------
+date (UTC)      2026-11-12
+target           Oracle Cloud Infrastructure (certified target) + local Docker
+verdict          NO LIVE RESOURCES EXIST — nothing to destroy, $0.00 burn rate
+
+--- 1. what was actually provisioned -------------------------------------
+Stage 5 (cloud deployment) never executed. It stopped before `tofu plan`
+because the workspace holds no OCI credentials:
+
+  terraform/terraform.tfvars     absent
+  ~/.oci/config                  absent  (no API signing key anywhere)
+  OCI_* / TF_VAR_* env vars      none
+  configs/rclone/rclone.conf     absent  (no Customer Secret Key)
+  oci CLI                        not installed
+
+Consequently there is no compute instance, no VCN, no subnet, no gateway, no
+security list and no Object Storage bucket belonging to this project. Nothing
+was ever created, so nothing can be left running and no trial credit was spent.
+
+--- 2. local container stack ---------------------------------------------
+The Stage 4 drill stack was already removed with `docker compose down -v`
+(containers, both named volumes, the network and the locally built image):
+
+  containers (cg-*/cloudguard)   0
+  volumes                        0
+  networks                       0
+  images (cloudguard/*)          0
+
+`docker compose down` therefore has nothing left to stop: it exits cleanly on
+an absent project, which is the clean-stop state this audit is meant to prove.
+
+--- 3. OpenTofu state ----------------------------------------------------
+  terraform/terraform.tfstate         absent
+  terraform/terraform.tfstate.backup  absent
+  terraform/.terraform.lock.hcl       present (provider pin, committed)
+
+  $ tofu state list
+  Error: No state file was found
+  State management commands require a state file.
+
+There is no state because `tofu apply` was never run: Stage 2 only ever
+executed `init -backend=false` plus `validate`, neither of which writes state.
+So the requirement "state file intact and tracking all provisioned resources"
+is vacuously satisfied — the tracked set is empty, and an empty set is exact.
+
+--- 4. tofu destroy -auto-approve (as requested) ------------------------
+  $ tofu destroy -auto-approve -input=false
+  Error: No value for required variable
+    on variables.tf line 189:
+   189: variable "ssh_public_key" {
+  exit 1
+
+Destroy cannot even assemble a plan without the tenancy/compartment/SSH inputs,
+which is the expected and safe outcome: without credentials and without state,
+the command is incapable of reaching the OCI API. This is the desired failure
+mode for a destructive operation — it refused instead of guessing.
+
+--- 5. destroy-order fact worth recording -------------------------------
+Provider schema inspection for oracle/oci (installed by `tofu init`):
+
+  "force_destroy" occurrences in provider schema: 0
+
+`oci_objectstorage_bucket` has no force-destroy switch, so destroying a bucket
+that still holds backup objects fails by design. Teardown order for any future
+run of Stage 5 is therefore:
+
+  1. rclone --config <cfg> purge oci-backups:cloudguard/db-backups
+  2. tofu destroy -auto-approve            (compute -> subnet -> SL -> IGW -> VCN -> bucket)
+  3. confirm: no instances, no buckets, cost analysis at $0.00
+
+Deleting the Customer Secret Key is a console step and is independent of tofu.
+
+--- 6. zero-resource verification limits --------------------------------
+The billable-resource claim above is established locally, from the absence of
+state, credentials and Docker objects. It was NOT confirmed through the OCI API,
+because no OCI CLI or API key exists on this machine. Once credentials exist,
+the equivalent check is:
+
+  oci compute instance list --compartment-id <ocid> --query 'data[].display-name'
+  oci os bucket list --compartment-id <ocid> --query 'data[].name'
+  oci usage-api ... / cost analysis in the console
+
+This distinction is recorded rather than glossed over: an audit that cannot
+query the API must say so instead of implying it did.
