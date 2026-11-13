@@ -127,3 +127,20 @@ No credential value is reproduced in this file.
     1.848 MiB / 192 MiB, next cycle in 3600 s. Destroy with:
         cd terraform && tofu destroy -auto-approve
     (empty the bucket first -- tofu cannot delete a non-empty bucket).
+
+9. Restore rehearsal (live, on the provisioned host)
+---------------------------------------------------
+    openssl enc -d (latest .enc) -> tar -xzf -> appdb_20261113T010903Z.dump + manifest.json
+    docker cp -> cg-db, then:
+
+    create database appdb_restored;
+    pg_restore --no-owner --no-privileges -U appuser -d appdb_restored /tmp/restore.dump
+      pg_restore: exit 0
+
+    app.customers = 25
+    app.events    = 1000
+    tables: customers, events
+
+    The restored row counts match the Stage 4 seed exactly, so the archive that
+    travelled through Object Storage is provably restorable, not merely present.
+    The scratch database was dropped and the temporary files removed afterwards.

@@ -415,6 +415,7 @@ keys and no real values.
 | 5 | Live backup cycle | `appdb_20261113T010903Z.tar.gz.enc` 4,416 B from a 10,630 B dump; rotation `0 removed, 3 retained` |
 | 5 | Live cloud sync | `rclone sync verified`; server-side bucket listing: 3 `.enc` + 3 `.sha256`, **13,230 B / 6 objects** |
 | 5 | Live decrypt round-trip | `openssl enc -d` → `appdb_20261113T010903Z.dump` + `manifest.json` |
+| 5 | Live restore rehearsal | `pg_restore` of the decrypted dump into `appdb_restored` → **25 customers / 1,000 events**, tables `customers, events`; scratch DB dropped after the check |
 | 6 | Teardown audit | two live instances intentionally kept; `tofu state list` verified, **0 orphaned resources** |
 
 Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verification.txt),
