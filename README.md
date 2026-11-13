@@ -416,7 +416,7 @@ keys and no real values.
 | 5 | Live cloud sync | `rclone sync verified`; server-side bucket listing: 3 `.enc` + 3 `.sha256`, **13,230 B / 6 objects** |
 | 5 | Live decrypt round-trip | `openssl enc -d` → `appdb_20261113T010903Z.dump` + `manifest.json` |
 | 5 | Live restore rehearsal | `pg_restore` of the decrypted dump into `appdb_restored` → **25 customers / 1,000 events**, tables `customers, events`; scratch DB dropped after the check |
-| 6 | Teardown audit | two live instances intentionally kept; `tofu state list` verified, **0 orphaned resources** |
+| 6 | Teardown audit | bucket purged (6 objects → 0), stack down, `tofu destroy`: **8 destroyed**, `tofu state list` empty; provider reports the instance `TERMINATED` and the bucket gone — **0 resources remaining** |
 
 Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verification.txt),
 [`docs/stage-5-live-verification.txt`](docs/stage-5-live-verification.txt),
@@ -445,7 +445,7 @@ Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verificatio
 | **3** | Agent playbook + operator checklist | ✅ |
 | **4** | Local drill: boot, backup + compression, retention, sync, restore | ✅ |
 | **5** | Live OCI deploy: cycles against the real bucket, restore rehearsal | ✅ verified on OCI (`141.144.254.161`) |
-| **6** | Teardown audit and zero-resource verification | ✅ 14 live resources intentional, 0 orphans |
+| **6** | Teardown audit and zero-resource verification | ✅ 14 resources destroyed across P03+P04, 0 remaining |
 | **7** | Encryption at rest (AES-256) + failure alerting webhook | ✅ |
 | **8** | Manifest signing (minisign/age), metric surface for dashboards | ⬜ |
 

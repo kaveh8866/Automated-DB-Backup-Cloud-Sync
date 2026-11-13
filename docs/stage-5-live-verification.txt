@@ -121,12 +121,21 @@ No credential value is reproduced in this file.
        fix:   chmod 444 on rclone.conf, oci_config and oci_api_key.pem. The mount
        is read-only, the host is single-tenant, and no other login user exists.
 
-8. State left behind
---------------------
-    Instance 141.144.254.161 running; cg-db healthy; cg-backup-runner up at
-    1.848 MiB / 192 MiB, next cycle in 3600 s. Destroy with:
-        cd terraform && tofu destroy -auto-approve
-    (empty the bucket first -- tofu cannot delete a non-empty bucket).
+8. Teardown (Stage 6, performed the same day)
+--------------------------------------------
+    rclone purge   -> Total objects: 0 / Total size: 0 B
+    docker compose down -> 0 containers, network removed
+    tofu destroy -auto-approve
+      Destroy complete! Resources: 8 destroyed.
+    tofu state list -> empty
+
+    provider-side read afterwards:
+      cloudguard-db-backup-dev-vm  TERMINATED
+      buckets in compartment       ["cloudguard"]   (pre-existing, not ours)
+
+    The tenancy IAM policy created for the bucket lifecycle policy was destroyed
+    as well, so nothing from this project survives in the tenancy. Burn rate is
+    back to $0.
 
 9. Restore rehearsal (live, on the provisioned host)
 ---------------------------------------------------
