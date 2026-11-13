@@ -75,3 +75,6 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# OCI CLI profile rewritten for the container mount (host-only, never committed)
+configs/rclone/oci_config

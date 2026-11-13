@@ -23,18 +23,19 @@ when to **stop** instead of improvising.
   off. AWS, GCP, R2 and MinIO are **documented ports, not certified targets** —
   they carry no test evidence in this repository. Never describe this project as
   "AWS-verified" or "GCP-verified".
-- **Current status:** the local stages are built and statically validated
-  (compose config, `tofu validate`); the live OCI drill is **pending**. Verify
-  before claiming a certification — see the phase map.
+- **Current status:** local stages verified (Stage 4) and **Stage 5 ran live on
+  OCI on 2026-11-13** — 8 resources in `eu-frankfurt-1`, encrypted archives
+  synced to the real bucket with `rclone check` passing. Verify before claiming
+  anything — see the phase map and `docs/stage-5-live-verification.txt`.
 
 | Project stage | Playbook phases | State |
 | ------------- | --------------- | ----- |
 | Stage 1 — scaffold, compose, scripts | 0, 1 | ✅ delivered |
-| Stage 2 — OpenTofu modules (`tofu validate` clean) | — | ✅ code only, never applied |
+| Stage 2 — OpenTofu modules (`tofu validate` clean) | — | ✅ applied — 8 resources in `eu-frankfurt-1` |
 | Stage 3 — this guide + `MANUAL_PREREQS.md` | — | ✅ delivered |
-| Stage 4 — local cycle, retention, restore drill | 2, 3, 4, 5 | ⬜ pending |
-| Stage 5 — live OCI deploy, bucket sync | 6, 7 | ⬜ pending |
-| Stage 6 — zero-leak audit, cost model, release | 8 | ⬜ pending |
+| Stage 4 — local cycle, retention, restore drill | 2, 3, 4, 5 | ✅ verified 2026-11-12 |
+| Stage 5 — live OCI deploy, bucket sync | 6, 7 | ✅ verified live 2026-11-13 |
+| Stage 6 — zero-leak audit, cost model, release | 8 | 🟡 audit + cost done, release tag pending |
 
 ---
 
@@ -49,6 +50,18 @@ when to **stop** instead of improvising.
   **new** database name such as `<db>_restored`.
 - Never report a sync as working from the upload log alone — run
   `rclone check` (the script already does) and read its result.
+- Never set `provider = user` in an rclone OCI remote. The token is
+  `user_principal_auth` with `config_file` + `config_profile`; an unknown token
+  fails as `did not find a proper configuration for tenancy`, which reads like a
+  credential problem but is a config-key problem.
+- Files on a `:ro` bind mount still need `o+r`. The runner runs as uid 100/101,
+  so configs written by `ubuntu` at mode 400 are unreadable inside the container.
+  Use `chmod 444` on `rclone.conf`, the OCI profile and the API key (the mount is
+  read-only and the host is single-tenant), or `chown 100:101` where sudo exists.
+- The bucket lifecycle policy needs an IAM statement for the Object Storage
+  service principal (`Allow service objectstorage-<region> to manage
+  object-family in tenancy`). Without it `tofu apply` half-succeeds: everything
+  creates except `oci_objectstorage_object_lifecycle_policy`.
 - Never claim a live OCI verification you did not run. Passwords, keys and
   namespaces are operator inputs; if they are missing, stop and say so.
 

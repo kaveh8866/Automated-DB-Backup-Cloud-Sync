@@ -1,0 +1,129 @@
+Automated DB Backup & Cloud Sync — Stage 5 live OCI verification
+===============================================================
+Date:       2026-11-13
+Region:     eu-frankfurt-1, availability domain AD-2
+Host:       141.144.254.161 (VM.Standard.A1.Flex, 1 OCPU / 6 GB, Ubuntu 24.04, aarch64)
+Image:      cloudguard/db-backup-runner:local (alpine 3.20)
+Bucket:     oci://frvl2gdp5ik1/cloudguard-db-backups (private, versioning on,
+            archive after 30 days)
+
+No credential value is reproduced in this file.
+
+1. Provisioning
+---------------
+    Plan: 8 to add, 0 to change, 0 to destroy.
+
+    module.network.oci_core_vcn.this: Creation complete [vcn oc1.eu-frankfurt-1]
+    module.network.oci_core_internet_gateway.this: Creation complete
+    module.network.oci_core_security_list.public: Creation complete
+    module.network.oci_core_route_table.public: Creation complete
+    module.network.oci_core_subnet.public: Creation complete
+    module.compute.oci_core_instance.this: Creation complete after 44s
+    module.storage.oci_objectstorage_bucket.this: Creation complete after 0s
+      [id=n/frvl2gdp5ik1/b/cloudguard-db-backups]
+
+    7 of 8 resources created on the first pass. The eighth failed:
+
+    Error: 400-InsufficientServicePermissions, Permissions granted to the object
+    storage service principal "objectstorage-eu-frankfurt-1" to this bucket are
+    insufficient.
+
+    cause: the lifecycle policy is applied by the Object Storage service
+    principal, which needs its own IAM statement. A tenancy policy was created:
+
+    Allow service objectstorage-eu-frankfurt-1 to manage object-family in tenancy
+
+    After that the same plan applied cleanly:
+
+    module.storage.oci_objectstorage_object_lifecycle_policy.this: Creation
+      complete after 2s [id=n/frvl2gdp5ik1/b/cloudguard-db-backups/l]
+    Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+2. Host bootstrap
+-----------------
+    cloud-init: status: done
+    docker:     Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+    arch:       aarch64, kernel 7.0.0-1013-oracle
+
+3. Runtime configuration
+------------------------
+    BACKUP_SYNC_MODE=rclone, RCLONE_REMOTE=oci-backups,
+    RCLONE_DEST_PATH=cloudguard/db-backups
+    BACKUP_ENCRYPTION=openssl (AES-256-CBC, pbkdf2, 200000 iterations)
+    ALERT_WEBHOOK_URL empty (log-only on this host)
+    POSTGRES_PASSWORD and BACKUP_ENCRYPTION_PASSPHRASE generated on the host
+    with openssl rand; both live only in .env (mode 600, never committed).
+
+    rclone remote uses the OCI native backend, not S3 interop, so no Customer
+    Secret Keys are needed:
+
+      [oci-backups]
+      type = oracleobjectstorage
+      provider = user_principal_auth
+      namespace = frvl2gdp5ik1
+      compartment = <tenancy>
+      region = eu-frankfurt-1
+      config_file = /etc/rclone/oci_config
+      config_profile = DEFAULT
+
+4. Live backup cycle (manual trigger: docker exec cg-backup-runner backup.sh)
+------------------------------------------------------------------------------
+    2026-11-13T01:09:03Z [backup] dumping appdb from postgres:5432 as appuser (encryption=openssl)
+    2026-11-13T01:09:04Z [backup] encrypted with AES-256 (pbkdf2), plaintext archive removed
+    2026-11-13T01:09:04Z [backup] archive written: appdb_20261113T010903Z.tar.gz.enc (4416 bytes, dump 10630 bytes, encryption=openssl)
+    2026-11-13T01:09:04Z [rotate] rotation complete: 0 removed, 3 retained (policy 7d / keep>=3)
+    2026-11-13T01:09:04Z [sync] uploading archives to oci-backups:cloudguard/db-backups
+    2026-11-13T01:09:05Z [sync] rclone sync verified against oci-backups:cloudguard/db-backups
+
+5. Encryption at rest
+---------------------
+    header:         S a l t e d _ _          (openssl envelope, not gzip)
+    tar -tzf <.enc>: empty output / non-zero exit (cannot read as plaintext)
+    sha256sum -c:   appdb_20261113T010759Z.tar.gz.enc: OK
+    plaintext:      removed by backup.sh after encryption
+
+    Decrypt round-trip in the same container:
+
+    openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -> tar -tzf:
+      appdb_20261113T010903Z.dump
+      manifest.json
+
+6. Object Storage contents (server-side listing, rclone lsl)
+------------------------------------------------------------
+    4416  2026-11-13 01:08:01  appdb_20261113T010759Z.tar.gz.enc
+     100  2026-11-13 01:08:01  appdb_20261113T010759Z.tar.gz.enc.sha256
+    4416  2026-11-13 01:08:50  appdb_20261113T010849Z.tar.gz.enc
+     100  2026-11-13 01:08:50  appdb_20261113T010849Z.tar.gz.enc.sha256
+    4416  2026-11-13 01:09:04  appdb_20261113T010903Z.tar.gz.enc
+     100  2026-11-13 01:09:04  appdb_20261113T010903Z.tar.gz.enc.sha256
+
+    Total objects: 6
+    Total size:    13.230 KiB (13548 Byte)
+
+    Object modtimes are the local archive mtimes preserved by rclone, not upload
+    times: all six objects arrived in the verified run at 01:09:05.
+
+7. Failures met and fixed on the way
+------------------------------------
+    a) rclone "can not create client, bad configuration: did not find a proper
+       configuration for tenancy"
+       cause: rclone's OCI backend expects provider = user_principal_auth with a
+       config_file profile; provider = user is not a known token, so no auth
+       resolution happened at all.
+       fix:   native backend config with config_file/config_profile as above.
+
+    b) "missing rclone config at /etc/rclone/rclone.conf" followed by
+       "Failed to load config file: permission denied"
+       cause: the bind mount is read-only but not ownership-mapped. The runner
+       runs as uid 100/101; configs written by ubuntu at mode 400 are unreadable
+       inside the container. No sudo is available on this host for the
+       deployment user, so chown was not an option.
+       fix:   chmod 444 on rclone.conf, oci_config and oci_api_key.pem. The mount
+       is read-only, the host is single-tenant, and no other login user exists.
+
+8. State left behind
+--------------------
+    Instance 141.144.254.161 running; cg-db healthy; cg-backup-runner up at
+    1.848 MiB / 192 MiB, next cycle in 3600 s. Destroy with:
+        cd terraform && tofu destroy -auto-approve
+    (empty the bucket first -- tofu cannot delete a non-empty bucket).

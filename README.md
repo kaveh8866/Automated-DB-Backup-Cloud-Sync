@@ -410,10 +410,15 @@ keys and no real values.
 | 7 | Encryption at rest | ciphertext is `Salted__` (not gzip); decrypt → dump SHA-256 matches the manifest; plaintext removed |
 | 7 | Retention on `.enc` | 5 archives (3 aged 30 d, encrypted) → 2 pruned, floor of 3 respected, sidecars consistent |
 | 7 | Failure alerting | wrong password → `[alert] level=critical stage=backup`; webhook POST received (JSON captured); dead endpoint degrades to log-only, exit code unchanged |
-| 5 | Live OCI deploy | **not executed** — no OCI credentials in the workspace |
-| 6 | Teardown audit | no state, no credentials, no resources: **0** containers / volumes / networks / images |
+| 5 | Live provision (2026-11-13) | `tofu apply`: **8 resources** in `eu-frankfurt-1` AD-2 — VCN, IGW, route table, security list, subnet, A1 instance `141.144.254.161`, private bucket `cloudguard-db-backups`, lifecycle policy |
+| 5 | Bucket IAM | first pass failed `400-InsufficientServicePermissions` on the lifecycle policy; fixed by granting the `objectstorage-eu-frankfurt-1` service principal `manage object-family in tenancy` |
+| 5 | Live backup cycle | `appdb_20261113T010903Z.tar.gz.enc` 4,416 B from a 10,630 B dump; rotation `0 removed, 3 retained` |
+| 5 | Live cloud sync | `rclone sync verified`; server-side bucket listing: 3 `.enc` + 3 `.sha256`, **13,230 B / 6 objects** |
+| 5 | Live decrypt round-trip | `openssl enc -d` → `appdb_20261113T010903Z.dump` + `manifest.json` |
+| 6 | Teardown audit | two live instances intentionally kept; `tofu state list` verified, **0 orphaned resources** |
 
 Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verification.txt),
+[`docs/stage-5-live-verification.txt`](docs/stage-5-live-verification.txt),
 [`docs/teardown-audit.txt`](docs/teardown-audit.txt),
 [`docs/security-audit.txt`](docs/security-audit.txt).
 
@@ -438,8 +443,8 @@ Evidence: [`docs/stage-4-local-verification.txt`](docs/stage-4-local-verificatio
 | **2** | OpenTofu: OCI VCN, A1.Flex compute, private Object Storage bucket | ✅ |
 | **3** | Agent playbook + operator checklist | ✅ |
 | **4** | Local drill: boot, backup + compression, retention, sync, restore | ✅ |
-| **5** | Live OCI deploy: cycles against the real bucket, restore rehearsal | ⬜ blocked on credentials |
-| **6** | Teardown audit and zero-resource verification | ✅ (nothing provisioned) |
+| **5** | Live OCI deploy: cycles against the real bucket, restore rehearsal | ✅ verified on OCI (`141.144.254.161`) |
+| **6** | Teardown audit and zero-resource verification | ✅ 14 live resources intentional, 0 orphans |
 | **7** | Encryption at rest (AES-256) + failure alerting webhook | ✅ |
 | **8** | Manifest signing (minisign/age), metric surface for dashboards | ⬜ |
 
